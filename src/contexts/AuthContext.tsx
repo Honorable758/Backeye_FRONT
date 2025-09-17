@@ -71,26 +71,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { data: userData, error: userError } = await supabase
         .from('users')
         .select('*')
-        .eq('email', email)
-        .single();
+        .eq('email', email);
 
-      if (userError || !userData) {
+      if (userError) {
+        console.error('Database error:', userError);
+        return { error: 'Database error occurred' };
+      }
+
+      if (!userData || userData.length === 0) {
         return { error: 'Invalid credentials' };
       }
 
-      console.log("Fetched userData:", userData);
+      const user = userData[0];
+      console.log("Fetched userData:", user);
       
       // For demo purposes, we'll use a simple password check
       // In production, you'd want proper password hashing
-      if (userData.password_hash !== password) {
+      if (user.password_hash !== password) {
         return { error: 'Invalid credentials' };
       }
 
       // Create a session (simplified for demo)
-      setUser(userData);
+      setUser(user);
       
       return {};
     } catch (error) {
+      console.error('Sign in error:', error);
       return { error: 'An error occurred during sign in' };
     }
   };
