@@ -40,22 +40,41 @@ export function UserManagement() {
 
   const handleAddUser = async (userData: { email: string; password: string; role: 'admin' | 'client' }) => {
     try {
-      const { error } = await supabase
+      // First, create the user in Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: userData.email,
+        password: userData.password,
+      });
+
+      if (authError) {
+        console.error('Auth signup error:', authError);
+        throw new Error(authError.message);
+      }
+
+      if (!authData.user) {
+        throw new Error('Failed to create user in authentication system');
+      }
+
+      // Then, add the user details to our custom users table
+      const { error: userError } = await supabase
         .from('users')
         .insert([{
+          id: authData.user.id,
           email: userData.email,
-          password_hash: userData.password, // In production, hash this properly
           role: userData.role,
         }]);
 
-      if (error) throw error;
+      if (userError) {
+        console.error('User table insert error:', userError);
+        throw new Error('Failed to create user profile');
+      }
       
       toast.success('User added successfully');
       setShowAddModal(false);
       loadUsers();
     } catch (error) {
       console.error('Error adding user:', error);
-      toast.error('Failed to add user');
+      toast.error(error instanceof Error ? error.message : 'Failed to add user');
     }
   };
 
