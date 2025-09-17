@@ -67,33 +67,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     try {
-      // First check if user exists in our users table
+      // Use Supabase's native authentication
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (authError) {
+        console.error('Auth error:', authError);
+        return { error: 'Invalid credentials' };
+      }
+
+      if (!authData.user) {
+        return { error: 'Authentication failed' };
+      }
+
+      // Fetch user details from our custom users table
       const { data: userData, error: userError } = await supabase
         .from('users')
         .select('*')
-        .eq('email', email);
+        .eq('id', authData.user.id)
+        .single();
 
-      if (userError) {
-        console.error('Database error:', userError);
-        return { error: 'Database error occurred' };
+      if (userError || !userData) {
+        console.error('User data error:', userError);
+        // If user doesn't exist in our custom table, create a basic entry
+        const { data: newUserData, error: insertError } = await supabase
+          .from('users')
+          .insert([{
+            id: authData.user.id,
+            email: authData.user.email!,
+            role: 'viewer', // default role
+          }])
+          .select()
+          .single();
+
+        if (insertError || !newUserData) {
+          console.error('Error creating user record:', insertError);
+          return { error: 'Failed to create user profile' };
+        }
+
+        setUser(newUserData);
+      } else {
+        setUser(userData);
       }
 
-      if (!userData || userData.length === 0) {
-        return { error: 'Invalid credentials' };
-      }
-
-      const user = userData[0];
-      console.log("Fetched userData:", user);
-      
-      // For demo purposes, we'll use a simple password check
-      // In production, you'd want proper password hashing
-      if (user.password_hash !== password) {
-        return { error: 'Invalid credentials' };
-      }
-
-      // Create a session (simplified for demo)
-      setUser(user);
-      
       return {};
     } catch (error) {
       console.error('Sign in error:', error);
@@ -102,6 +120,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
+    await supabase.auth.signOut();
     setUser(null);
   };
 
