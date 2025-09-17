@@ -56,8 +56,11 @@ console.log('Auth user:', user);
       try {
         // Check if Google Maps API key is available
         const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+        console.log('Google Maps API Key:', apiKey ? 'Present' : 'Missing');
         if (!apiKey) {
-          throw new Error('Google Maps API key is not configured');
+          setMapError('Google Maps API key is not configured. Please add VITE_GOOGLE_MAPS_API_KEY to your .env file.');
+          setIsLoading(false);
+          return;
         }
 
         const loader = new Loader({
@@ -66,7 +69,9 @@ console.log('Auth user:', user);
           libraries: ['places'],
         });
 
+        console.log('Loading Google Maps...');
         await loader.load();
+        console.log('Google Maps loaded successfully');
 
         const map = new google.maps.Map(mapRef.current, {
           center: { lat: 40.7128, lng: -74.0060 }, // Default to NYC
@@ -88,7 +93,6 @@ console.log('Auth user:', user);
         console.error('Error initializing map:', error);
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         setMapError(`Failed to load map: ${errorMessage}`);
-        toast.error(`Failed to load map: ${errorMessage}`);
       } finally {
         setIsLoading(false);
       }
